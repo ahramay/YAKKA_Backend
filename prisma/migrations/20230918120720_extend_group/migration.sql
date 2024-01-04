@@ -1,0 +1,22 @@
+-- AlterTable
+ALTER TABLE `Group` ADD COLUMN `profileImage` VARCHAR(191) NULL,
+    ADD COLUMN `coordinates` VARCHAR(191) NOT NULL DEFAULT '0,0',
+    ADD COLUMN `locationName` VARCHAR(191) NULL DEFAULT '';
+
+-- CreateTable
+CREATE TABLE `GroupInvite` (
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `groupId` INTEGER NOT NULL,
+    `userId` INTEGER NOT NULL,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updatedAt` DATETIME(3) NOT NULL,
+    `status` ENUM('PENDING', 'ACCEPTED', 'DECLINED') NOT NULL DEFAULT 'PENDING',
+
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- AddForeignKey
+ALTER TABLE `GroupInvite` ADD CONSTRAINT `GroupInvite_groupId_fkey` FOREIGN KEY (`groupId`) REFERENCES `Group`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `GroupInvite` ADD CONSTRAINT `GroupInvite_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `User`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;

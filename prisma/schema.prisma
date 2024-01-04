@@ -1,0 +1,682 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+// generator dbml {
+//   provider = "prisma-dbml-generator"
+//   output   = "dbml/schema.dbml"
+// }
+
+datasource db {
+  provider          = "mysql"
+  url               = env("DATABASE_URL")
+  shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
+}
+
+model User {
+  id                       Int                    @id @default(autoincrement())
+  email                    String?                @unique
+  firstName                String?
+  lastName                 String?
+  phoneCountryCode         String?
+  phoneNumber              String?                @unique
+  phoneVerified            Boolean                @default(false)
+  pushNotificationToken    String?                @db.Text
+  emergencyContactName     String?
+  emergencyContactNumber   String?
+  createdAt                DateTime               @default(now())
+  updatedAt                DateTime               @updatedAt
+  isVerified               Boolean                @default(false)
+  status                   UserStatus             @default(UNAVAILABLE)
+  verificationReminderSent Boolean                @default(false)
+  contactsScreenCompleted  Boolean                @default(false)
+  blockedBy                BlockedUser[]          @relation("blockedBy")
+  blockedUsers             BlockedUser[]          @relation("blockedUsers")
+  receivedFriendRequests   Friends[]              @relation("ReceivedFriendRequests")
+  sentFriendRequests       Friends[]              @relation("SentFriendRequests")
+  sentMessages             Message[]
+  reportsAuthored          Report[]               @relation("reportsAuthored")
+  reportsReceived          Report[]               @relation("reportsReceived")
+  Session                  Session[]
+  account                  UserAccount?
+  chats                    UserChat[]
+  hashtags                 UserHashtag[]
+  images                   UserImage[]
+  interests                UserInterest[]
+  location                 UserLocation?
+  profile                  UserProfile?
+  UserVerificationImage    UserVerificationImage?
+  invitedYakkas            Yakka[]                @relation("invitedYakkas")
+  organisedYakkas          Yakka[]                @relation("organisedYakkas")
+  authoredReviews          YakkaReview[]          @relation("authoredReviews")
+  receivedReviews          YakkaReview[]          @relation("receivedReviews")
+  receivedNotifications    Notification[]         @relation("receivedNotifications")
+  sentNotifications        Notification[]         @relation("sentNotifications")
+  userEmergencyContact     UserEmergencyContact?
+  isBanned                 BannedUsers?
+  RateLimitExceptions      RateLimitException[]
+  groups                   Group[] 
+  groupParticipations      GroupParticipant[]        
+  groupInvites             GroupInvite[]
+
+}
+
+model Notification {
+  id Int @id @default(autoincrement())
+
+  user   User @relation(name: "receivedNotifications", fields: [userId], references: [id], onDelete: Cascade)
+  userId Int
+
+  // Sender ID is nullable because it can be a misc notification
+  senderId Int?
+  sender   User? @relation(name: "sentNotifications", fields: [senderId], references: [id], onDelete: Cascade)
+
+  prepositionName  String?
+  clause           String
+  postpositionName String?
+
+  type NotificationType
+
+  // If review, yakka, friend request, etc
+  reviewId Int?
+  review   YakkaReview? @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+
+  friendRequestId Int?
+  friendRequest   Friends? @relation(fields: [friendRequestId], references: [id])
+
+  yakkaId Int?
+  yakka   Yakka? @relation(fields: [yakkaId], references: [id], onDelete: Cascade)
+
+  groupId Int?
+  group   Group? @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  // Corresponds to the green highlight in the app
+  isRead     Boolean @default(false)
+  isActioned Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId], map: "Notification_userId_fkey")
+}
+
+enum NotificationType {
+  GROUP_INVITE
+  GROUP_ACCEPTED
+  GROUP_DECLINED
+  GROUP_UPDATED
+  GROUP_CANCELLED
+  GROUP_REVIEWED
+  YAKKA_INVITE
+  YAKKA_ACCEPTED
+  YAKKA_DECLINED
+  YAKKA_UPDATED
+  YAKKA_CANCELLED
+  YAKKA_REVIEWED
+  FRIEND_REQUEST
+  ACCEPTED_FRIEND_REQUEST
+  NEARBY_GROUP_CREATED
+  VERIFICATION_FAILED
+  VERIFICATION_REMINDER
+  VERIFICATION_SUCCEEDED
+  MISC
+}
+
+model BlockedUser {
+  id            Int  @id @default(autoincrement())
+  userId        Int
+  blockedUserId Int
+  blockedUser   User @relation("blockedBy", fields: [blockedUserId], references: [id], onDelete: Cascade)
+  user          User @relation("blockedUsers", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, blockedUserId])
+  @@index([blockedUserId], map: "BlockedUser_blockedUserId_fkey")
+}
+
+model Report {
+  id         Int            @id @default(autoincrement())
+  authorId   Int
+  reportedId Int
+  reason     ReportedReason
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+  author     User           @relation("reportsAuthored", fields: [authorId], references: [id], onDelete: Cascade)
+  reported   User           @relation("reportsReceived", fields: [reportedId], references: [id], onDelete: Cascade)
+
+  @@index([authorId], map: "Report_authorId_fkey")
+  @@index([reportedId], map: "Report_reportedId_fkey")
+}
+
+
+
+model UserImage {
+  id        Int       @id @default(autoincrement())
+  userId    Int
+  imageName String    @db.Text
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  sortOrder Int
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  source    ImageType @default(YAKKA)
+  // Make userId and imageName unique, give imageName a length
+
+  @@unique([userId, id])
+}
+
+enum ImageType {
+  YAKKA
+  FACEBOOK
+}
+
+model UserProfile {
+  id          Int      @id @default(autoincrement())
+  userId      Int      @unique
+  gender      Genders
+  jobTitle    String
+  dateOfBirth DateTime @db.Date
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  bio         String   @db.Text
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  coverPhoto  String?  @db.Text
+}
+
+enum Genders {
+  Man
+  Woman
+  Nonbinary
+  Other
+}
+
+model UserLocation {
+  id           Int                  @id @default(autoincrement())
+  userId       Int                  @unique
+  latitude     Float
+  longitude    Float
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+  point        Unsupported("point")
+  locationName String?
+  user         User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([point(length: 32)], map: "point_index")
+}
+
+model UserAccount {
+  id                Int      @id @default(autoincrement())
+  userId            Int      @unique
+  authType          AuthType
+  providerAccountId String?
+  accessToken       String?  @db.Text
+  refreshToken      String?  @db.Text
+  idToken           String?  @db.Text
+  password          String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([authType, providerAccountId])
+}
+
+model Session {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId], map: "Session_userId_fkey")
+}
+
+model OauthState {
+  id        Int      @id @default(autoincrement())
+  state     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Hashtag {
+  id          Int           @id @default(autoincrement())
+  name        String        @unique
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  UserHashtag UserHashtag[]
+  hashTags GroupHashtag[]
+
+}
+
+model UserHashtag {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  hashtagId Int
+  hashtag   Hashtag  @relation(fields: [hashtagId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, hashtagId])
+  @@index([hashtagId], map: "UserHashtag_hashtagId_fkey")
+}
+
+model GroupHashtag {
+  id        Int      @id @default(autoincrement())
+  groupId    Int
+  hashtagId Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  group     Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  hashTags  Hashtag   @relation(fields: [hashtagId], references: [id], onDelete: Cascade)
+}
+
+model UserInterest {
+  id         Int      @id @default(autoincrement())
+  userId     Int
+  interestId Int
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  interest   Interest @relation(fields: [interestId], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([userId, interestId])
+  @@index([interestId], map: "UserInterest_interestId_fkey")
+}
+
+model GroupInterest {
+  id         Int      @id @default(autoincrement())
+  groupId     Int
+  interestId Int
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  interest   Interest @relation(fields: [interestId], references: [id], onDelete: Cascade)
+  // group      Group     @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, interestId])
+  @@index([interestId], map: "UserInterest_interestId_fkey")
+}
+
+model InterestCategory {
+  id        String     @id
+  name      String     @unique
+  interests Interest[]
+  category GroupCategory[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+}
+
+model Interest {
+  id   Int    @id @default(autoincrement())
+  name String
+
+  users              UserInterest[]
+  groups             GroupInterest[]
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  InterestCategory   InterestCategory? @relation(fields: [interestCategoryId], references: [id])
+  interestCategoryId String?
+
+  @@unique([name, interestCategoryId])
+}
+
+model Gesture {
+  id                    Int                     @id @default(autoincrement())
+  description           String?
+  imageName             String                  @unique
+  UserVerificationImage UserVerificationImage[]
+}
+
+model UserVerificationImage {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @unique
+  gestureId Int
+  imageName String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  gesture   Gesture  @relation(fields: [gestureId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([gestureId], map: "UserVerificationImage_gestureId_fkey")
+}
+
+model YakkaReview {
+  id            Int            @id @default(autoincrement())
+  authorId      Int?
+  receiverId    Int?
+  yakkaId       Int?
+  rating        Int
+  comment       String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  author        User?          @relation("authoredReviews", fields: [authorId], references: [id], onDelete: SetNull)
+  receiver      User?          @relation("receivedReviews", fields: [receiverId], references: [id], onDelete: SetNull)
+  yakka         Yakka?         @relation(fields: [yakkaId], references: [id], onDelete: SetNull)
+  notifications Notification[]
+
+  @@unique([authorId, receiverId, yakkaId])
+}
+
+model Friends {
+  id           Int            @id @default(autoincrement())
+  senderId     Int
+  receiverId   Int
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  status       RequestStatus  @default(PENDING)
+  receiver     User           @relation("ReceivedFriendRequests", fields: [receiverId], references: [id], onDelete: Cascade)
+  sender       User           @relation("SentFriendRequests", fields: [senderId], references: [id], onDelete: Cascade)
+  Notification Notification[]
+
+  @@unique([senderId, receiverId])
+  @@index([receiverId], map: "Friends_receiverId_fkey")
+}
+
+model Yakka {
+  id                      Int            @id @default(autoincrement())
+  organiserId             Int
+  inviteeId               Int
+  coordinates             String
+  locationName            String
+  status                  RequestStatus  @default(PENDING)
+  createdAt               DateTime       @default(now())
+  updatedAt               DateTime       @updatedAt
+  date                    DateTime
+  endTime                 DateTime
+  invitee                 User           @relation("invitedYakkas", fields: [inviteeId], references: [id], onDelete: Cascade)
+  organiser               User           @relation("organisedYakkas", fields: [organiserId], references: [id], onDelete: Cascade)
+  YakkaReview             YakkaReview[]
+  Notification            Notification[]
+  emergencyContactAlerted Boolean        @default(false)
+
+  @@index([inviteeId], map: "Yakka_inviteeId_fkey")
+  @@index([organiserId], map: "Yakka_organiserId_fkey")
+}
+
+model Group {
+  id        Int      @id @default(autoincrement())
+  organiserId Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  date      DateTime?
+  endTime   DateTime?
+  name      String
+  groupGender  String? @default("")
+  description String @default("")
+  organiser User    @relation(fields: [organiserId], references: [id], onDelete: Cascade)
+  participants GroupParticipant[]
+  invites GroupInvite[]
+  frequency String? @default("")
+	repeatFor String? @default("")
+  coordinates String @default("0,0")
+  categories GroupCategory[]
+  groupLocation GroupLocation[]
+  locationName String? @default("")
+  profileImage String?  @db.Text
+  coverImage String?  @db.Text
+  // point        Unsupported("point")
+  isPrivate Boolean @default(false)
+  paymentAmount Int?
+  paymentUrl String?
+  // backdropImage String?
+  // image String?
+  // interests GroupInterest[]
+  hashtags GroupHashtag[]
+  notifications Notification[]
+  // @@index([point(length: 32)], map: "point_index")
+  @@index ([organiserId], map: "Group_organiserId_fkey")
+
+}
+
+model GroupLocation {
+  id           Int                  @id @default(autoincrement())
+  groupId      Int                  @unique
+  latitude     Float
+  longitude    Float
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+  point        Unsupported("point")
+  locationName String?
+  group         Group                 @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  @@index([point(length: 32)], map: "point_index")
+}
+
+model GroupParticipant {
+  id        Int      @id @default(autoincrement())
+  groupId Int
+  userId Int
+
+  role GroupRole @default(INVITEE)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // groupReview GroupReview[]
+  // notification Notification[]
+
+  group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)    
+  user User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+}
+
+model GroupCategory {
+  id        Int      @id @default(autoincrement())
+
+  groupId Int
+  categoryId String
+  group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  category InterestCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, categoryId])
+}
+
+model GroupInvite {
+  id        Int      @id @default(autoincrement())
+  groupId Int
+  userId Int
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  status RequestStatus @default(PENDING)
+
+  group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)    
+  user User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Chat {
+  id        String     @id @default(uuid())
+  dataKey   String     @db.Text
+  createdAt DateTime   @default(now())
+  messages  Message[]
+  users     UserChat[]
+}
+
+model UserChat {
+  id                Int      @id @default(autoincrement())
+  userId            Int
+  chatId            String
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  chat              Chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  hasUnreadMessages Boolean  @default(false)
+
+  @@unique([userId, chatId])
+  @@index([chatId], map: "UserChat_chatId_fkey")
+}
+
+model Message {
+  id                  Int              @id @default(autoincrement())
+  chatId              String
+  senderId            Int
+  content             String           @db.Text
+  createdAt           DateTime         @default(now())
+  chat                Chat             @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  sender              User             @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  type                MessageType
+  mediaUrl            String?
+  checkedForProfanity Boolean          @default(false)
+  FlaggedMessage      FlaggedMessage[]
+
+  @@index([chatId], map: "Message_chatId_fkey")
+  @@index([senderId], map: "Message_senderId_fkey")
+}
+
+model FlaggedMessage {
+  id        Int     @id @default(autoincrement())
+  messageId Int     @unique
+  reason    String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+}
+
+enum MessageType {
+  TEXT
+  IMAGE
+  AUDIO
+}
+
+model JobTitle {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum UserStatus {
+  AVAILABLE_TO_CHAT
+  AVAILABLE_TO_YAKKA
+  UNAVAILABLE
+}
+
+enum ReportedReason {
+  PICTURE
+  BIO
+  HARASSMENT
+  SAFETY
+}
+
+enum AuthType {
+  GOOGLE
+  FACEBOOK
+  APPLE
+  LINKEDIN
+  CREDENTIALS
+}
+
+enum RequestStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+}
+
+enum GroupRole {
+  ADMIN
+  MEMBER
+  INVITEE
+}
+
+model AdminUser {
+  id            String               @id @default(cuid())
+  firstName     String
+  lastName      String
+  email         String               @unique
+  emailVerified DateTime?
+  lastLogin     DateTime?
+  accessLevel   AdminUserAccessLevel @default(ADMIN)
+}
+
+enum AdminUserAccessLevel {
+  ADMIN
+  VERIFIER
+}
+
+model AdminVerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model ContentGroup {
+  id            Int                 @id @default(autoincrement())
+  name          String              @unique
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+  showAddButton Boolean             @default(true)
+  type          ContentGroupType    @default(DEFAULT)
+  items         Content[]
+  icons         ContentGroupIcons[]
+}
+
+enum ContentGroupType {
+  DEFAULT
+  PROFANITY
+}
+
+model ContentGroupIcons {
+  id             Int          @id @default(autoincrement())
+  name           String
+  contentGroupId Int
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  contentGroup   ContentGroup @relation(fields: [contentGroupId], references: [id], onDelete: Cascade)
+  contentItems   Content[]
+
+  @@unique([name, contentGroupId])
+}
+
+model Content {
+  id             Int                @id @default(autoincrement())
+  contentGroupId Int
+  title          String?            @db.Text
+  content        String?            @db.Text
+  iconId         Int?
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+  contentGroup   ContentGroup       @relation(fields: [contentGroupId], references: [id], onDelete: Cascade)
+  icon           ContentGroupIcons? @relation(fields: [iconId], references: [id], onDelete: Cascade)
+}
+
+model UserEmergencyContact {
+  id               Int      @id @default(autoincrement())
+  userId           Int      @unique
+  name             String
+  phoneCountryCode String
+  phoneNumber      String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model AutoBanWords {
+  id        Int      @id @default(autoincrement())
+  word      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model FlaggedWords {
+  id        Int      @id @default(autoincrement())
+  word      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model BannedUsers {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @unique
+  reason    String?  @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model RateLimitException {
+  id        Int      @id @default(autoincrement())
+  ip        String
+  url       String
+  method    String
+  userId    Int?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  createdAt DateTime @default(now())
+}

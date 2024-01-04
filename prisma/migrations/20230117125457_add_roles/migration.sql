@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE `AdminUser` ADD COLUMN `accessLevel` ENUM('ADMIN', 'SUPER_ADMIN') NOT NULL DEFAULT 'ADMIN';

@@ -1,0 +1,374 @@
+//// ------------------------------------------------------
+//// THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
+//// ------------------------------------------------------
+
+Table User {
+  id Int [pk, increment]
+  email String [unique]
+  firstName String
+  lastName String
+  phoneCountryCode String
+  phoneNumber String [unique]
+  phoneVerificationCode String
+  phoneVerificationCodeExpiry DateTime
+  phoneVerified Boolean [not null, default: false]
+  pushNotificationToken String
+  emergencyContactName String
+  emergencyContactNumber String
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+  imageVerified Boolean [not null, default: false]
+  status UserStatus [not null, default: 'UNAVAILABLE']
+  blockedBy BlockedUser [not null]
+  blockedUsers BlockedUser [not null]
+  receivedFriendRequests Friends [not null]
+  sentFriendRequests Friends [not null]
+  sentMessages Message [not null]
+  reportsAuthored Report [not null]
+  reportsReceived Report [not null]
+  Session Session [not null]
+  account UserAccount
+  chats UserChat [not null]
+  hashtags UserHashtag [not null]
+  images UserImage [not null]
+  interests UserInterest [not null]
+  location UserLocation
+  profile UserProfile
+  UserVerificationImage UserVerificationImage
+  invitedYakkas Yakka [not null]
+  organisedYakkas Yakka [not null]
+  authoredReviews YakkaReview [not null]
+  receivedReviews YakkaReview [not null]
+}
+
+Table BlockedUser {
+  id Int [pk, increment]
+  userId Int [not null]
+  blockedUserId Int [not null]
+  blockedUser User [not null]
+  user User [not null]
+
+  indexes {
+    (userId, blockedUserId) [unique]
+  }
+}
+
+Table Report {
+  id Int [pk, increment]
+  authorId Int [not null]
+  reportedId Int [not null]
+  reason ReportedReason [not null]
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+  author User [not null]
+  reported User [not null]
+}
+
+Table UserImage {
+  id Int [pk, increment]
+  userId Int [not null]
+  imageName String [not null]
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+  sortOrder Int [not null]
+  user User [not null]
+
+  indexes {
+    (userId, id) [unique]
+  }
+}
+
+Table UserProfile {
+  id Int [pk, increment]
+  userId Int [unique, not null]
+  gender Genders [not null]
+  jobTitle String [not null]
+  dateOfBirth DateTime [not null]
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+  bio String [not null]
+  user User [not null]
+}
+
+Table UserLocation {
+  id Int [pk, increment]
+  userId Int [unique, not null]
+  latitude Float [not null]
+  longitude Float [not null]
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+  locationName String
+  user User [not null]
+}
+
+Table UserAccount {
+  id Int [pk, increment]
+  userId Int [unique, not null]
+  authType AuthType [not null]
+  providerAccountId String
+  accessToken String
+  refreshToken String
+  idToken String
+  password String
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+  user User [not null]
+
+  indexes {
+    (authType, providerAccountId) [unique]
+  }
+}
+
+Table Session {
+  id Int [pk, increment]
+  userId Int [not null]
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+  user User [not null]
+}
+
+Table OauthState {
+  id Int [pk, increment]
+  state String [unique, not null]
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+}
+
+Table Hashtag {
+  id Int [pk, increment]
+  name String [unique, not null]
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+  UserHashtag UserHashtag [not null]
+}
+
+Table UserHashtag {
+  id Int [pk, increment]
+  userId Int [not null]
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+  hashtagId Int [not null]
+  hashtag Hashtag [not null]
+  user User [not null]
+
+  indexes {
+    (userId, hashtagId) [unique]
+  }
+}
+
+Table UserInterest {
+  id Int [pk, increment]
+  userId Int [not null]
+  interestId Int [not null]
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+  interest Interest [not null]
+  user User [not null]
+
+  indexes {
+    (userId, interestId) [unique]
+  }
+}
+
+Table Interest {
+  id Int [pk, increment]
+  name String [not null]
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+  parentId Int
+  parent Interest
+  subInterests Interest [not null]
+  users UserInterest [not null]
+}
+
+Table Gesture {
+  id Int [pk, increment]
+  description String
+  imageName String [unique, not null]
+  UserVerificationImage UserVerificationImage [not null]
+}
+
+Table UserVerificationImage {
+  id Int [pk, increment]
+  userId Int [unique, not null]
+  gestureId Int [not null]
+  imageName String [unique, not null]
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+  gesture Gesture [not null]
+  user User [not null]
+}
+
+Table YakkaReview {
+  id Int [pk, increment]
+  authorId Int [not null]
+  receiverId Int [not null]
+  yakkaId Int [not null]
+  rating Int [not null]
+  comment String
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+  author User [not null]
+  receiver User [not null]
+  yakka Yakka [not null]
+
+  indexes {
+    (authorId, receiverId, yakkaId) [unique]
+  }
+}
+
+Table Friends {
+  id Int [pk, increment]
+  senderId Int [not null]
+  receiverId Int [not null]
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+  status RequestStatus [not null, default: 'PENDING']
+  receiver User [not null]
+  sender User [not null]
+
+  indexes {
+    (senderId, receiverId) [unique]
+  }
+}
+
+Table Yakka {
+  id Int [pk, increment]
+  organiserId Int [not null]
+  inviteeId Int [not null]
+  coordinates String [not null]
+  locationName String [not null]
+  status RequestStatus [not null, default: 'PENDING']
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+  date DateTime [not null]
+  invitee User [not null]
+  organiser User [not null]
+  YakkaReview YakkaReview [not null]
+}
+
+Table Chat {
+  id String [pk]
+  createdAt DateTime [default: `now()`, not null]
+  messages Message [not null]
+  users UserChat [not null]
+}
+
+Table UserChat {
+  id Int [pk, increment]
+  userId Int [not null]
+  chatId String [not null]
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+  chat Chat [not null]
+  user User [not null]
+
+  indexes {
+    (userId, chatId) [unique]
+  }
+}
+
+Table Message {
+  id Int [pk, increment]
+  chatId String [not null]
+  senderId Int [not null]
+  content String [not null]
+  createdAt DateTime [default: `now()`, not null]
+  chat Chat [not null]
+  sender User [not null]
+}
+
+Table JobTitle {
+  id Int [pk, increment]
+  name String [unique, not null]
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+}
+
+Enum Genders {
+  Man
+  Woman
+  Nonbinary
+  Other
+}
+
+Enum UserStatus {
+  AVAILABLE_TO_CHAT
+  AVAILABLE_TO_YAKKA
+  UNAVAILABLE
+}
+
+Enum ReportedReason {
+  PICTURE
+  BIO
+  HARASSMENT
+  SAFETY
+}
+
+Enum AuthType {
+  GOOGLE
+  FACEBOOK
+  APPLE
+  LINKEDIN
+  CREDENTIALS
+}
+
+Enum RequestStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+}
+
+Ref: BlockedUser.blockedUserId > User.id
+
+Ref: BlockedUser.userId > User.id
+
+Ref: Report.authorId > User.id
+
+Ref: Report.reportedId > User.id
+
+Ref: UserImage.userId > User.id
+
+Ref: UserProfile.userId - User.id [delete: Cascade]
+
+Ref: UserLocation.userId - User.id [delete: Cascade]
+
+Ref: UserAccount.userId - User.id [delete: Cascade]
+
+Ref: Session.userId > User.id [delete: Cascade]
+
+Ref: UserHashtag.hashtagId > Hashtag.id [delete: Cascade]
+
+Ref: UserHashtag.userId > User.id [delete: Cascade]
+
+Ref: UserInterest.interestId > Interest.id [delete: Cascade]
+
+Ref: UserInterest.userId > User.id [delete: Cascade]
+
+Ref: Interest.parentId - Interest.id
+
+Ref: UserVerificationImage.gestureId > Gesture.id [delete: Cascade]
+
+Ref: UserVerificationImage.userId - User.id [delete: Cascade]
+
+Ref: YakkaReview.authorId > User.id [delete: Cascade]
+
+Ref: YakkaReview.receiverId > User.id [delete: Cascade]
+
+Ref: YakkaReview.yakkaId > Yakka.id [delete: Cascade]
+
+Ref: Friends.receiverId > User.id [delete: Cascade]
+
+Ref: Friends.senderId > User.id [delete: Cascade]
+
+Ref: Yakka.inviteeId > User.id [delete: Cascade]
+
+Ref: Yakka.organiserId > User.id [delete: Cascade]
+
+Ref: UserChat.chatId > Chat.id [delete: Cascade]
+
+Ref: UserChat.userId > User.id [delete: Cascade]
+
+Ref: Message.chatId > Chat.id [delete: Cascade]
+
+Ref: Message.senderId > User.id [delete: Cascade]
